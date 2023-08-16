@@ -1,5 +1,4 @@
 import http from "http";
-import axios from "axios";
 
 interface IConfiguration {
 	address: { host: string; port: number };
@@ -24,7 +23,7 @@ interface IAlgoType {
 }
 
 export default class Server {
-	#useServer: number = 0; // server to use in round - robin fashion
+	#useServer: number = 0; // server to use (from available list) in round-robin fashion
 	#serverList: IServerInfo[] = [];
 	#lbServer: http.Server;
 	#clientRequestData: IClientRequest = {
@@ -78,11 +77,10 @@ export default class Server {
 		console.log(URL);
 
 		try {
-			const response = await axios.request({
-				url: URL,
+			const response = await fetch(URL, {
 				method: this.#clientRequestData.method,
 			});
-			return response.data;
+			return await response.text();
 		} catch (e) {
 			console.log(e);
 		}
