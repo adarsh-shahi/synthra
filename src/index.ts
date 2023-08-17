@@ -9,6 +9,7 @@ interface IServerInfo {
 	port: number;
 	isHealthy: boolean;
 	id: number;
+	activeConnections: number;
 }
 
 interface IClientRequest {
@@ -23,7 +24,7 @@ interface IAlgoType {
 }
 
 export default class Server {
-	#useServer: number = 0; // server to use (from available list) in round-robin fashion
+	#lastUsedServerIndex: number = -1; // server to use (from available list) in round-robin fashion
 	#serverList: IServerInfo[] = [];
 	#lbServer: http.Server;
 	#clientRequestData: IClientRequest = {
@@ -49,10 +50,8 @@ export default class Server {
 					body,
 				};
 
+				console.log("lastUsedServerIndex: " + this.#lastUsedServerIndex);
 				const server = await this.#chooseServer(this.#serverList);
-				console.log(this.#useServer);
-				this.#useServer++; // next server to use in round-robin
-				if (this.#useServer === this.#serverList.length) this.#useServer = 0;
 
 				const response = await this.#sendRequestToServer(server);
 				console.log(response);
@@ -76,12 +75,20 @@ export default class Server {
 
 		console.log(URL);
 
+		let serverResponded = false;
+
 		try {
+			server.activeConnections = server.activeConnections + 1;
 			const response = await fetch(URL, {
 				method: this.#clientRequestData.method,
 			});
+
+			server.activeConnections = server.activeConnections - 1;
+			serverResponded = true;
 			return await response.text();
 		} catch (e) {
+			if (!serverResponded)
+				server.activeConnections = server.activeConnections - 1;
 			console.log(e);
 		}
 	}
@@ -92,10 +99,23 @@ export default class Server {
 
 	async #chooseServer(servers: IServerInfo[]) {
 		if (this.#loadBalancerCofiguration.algo === "round-robin") {
-			return this.#serverList[this.#useServer];
-		} else {
-			return this.#serverList[0];
-		}
+			this.#lastUsedServerIndex++;
+			if (this.#lastUsedServerIndex === this.#serverList.length)
+				this.#lastUsedServerIndex = 0;
+			return this.#serverList[this.#lastUsedServerIndex];
+		} else if (this.#loadBalancerCofiguration.algo === "least-connection") {
+			let leastActiveConnectionServer = this.#serverList[0];
+			for (let i = 1; i < this.#serverList.length; i++) {
+				if (
+					leastActiveConnectionServer.activeConnections >
+					this.#serverList[i].activeConnections
+				) {
+					leastActiveConnectionServer = this.#serverList[i];
+				}
+			}
+			this.#lastUsedServerIndex = leastActiveConnectionServer.id;
+			return leastActiveConnectionServer;
+		} else return this.#serverList[0];
 	}
 
 	add(server: IConfiguration) {
@@ -104,7 +124,8 @@ export default class Server {
 			port,
 			host,
 			isHealthy: true,
-			id: this.#serverList.length + 1,
+			id: this.#serverList.length,
+			activeConnections: 0,
 		});
 	}
 

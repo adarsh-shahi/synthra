@@ -1,24 +1,24 @@
 import Server from "../src";
-const server = new Server({ algo: "round-robin" });
+const server = new Server({ algo: "least-connection" });
 
 const PORT = process.env.PORT || 3000;
 
 server.add({
 	address: {
 		port: 5000,
-		host: "172.29.0.1",
+		host: "172.19.0.1",
 	},
 });
 server.add({
 	address: {
 		port: 8000,
-		host: "172.30.0.1",
+		host: "172.20.0.1",
 	},
 });
 server.add({
 	address: {
 		port: 9000,
-		host: "172.31.0.1",
+		host: "172.21.0.1",
 	},
 });
 
