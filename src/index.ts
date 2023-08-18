@@ -27,6 +27,9 @@ export default class Server {
 	#lastUsedServerIndex: number = -1; // server to use (from available list) in round-robin fashion
 	#serverList: IServerInfo[] = [];
 	#lbServer: http.Server;
+	#lbServerPort: number = 0;
+	#lbRequest: http.IncomingMessage | null = null;
+	#lbResponse: http.ServerResponse | null = null;
 	#clientRequestData: IClientRequest = {
 		ip: "",
 		path: "",
@@ -38,6 +41,9 @@ export default class Server {
 	constructor(configure: IAlgoType) {
 		this.#loadBalancerCofiguration.algo = configure.algo;
 		this.#lbServer = http.createServer((req, res) => {
+			this.#lbRequest = req;
+			this.#lbResponse = res;
+			console.log(req.headers);
 			let body = "";
 			req.on("data", (chunk) => {
 				body += chunk;
@@ -49,31 +55,44 @@ export default class Server {
 					method: req.method!,
 					body,
 				};
+				console.log(this.#lbServer.address());
 
 				console.log("lastUsedServerIndex: " + this.#lastUsedServerIndex);
-				const server = await this.#chooseServer(this.#serverList);
+				const server = await this.#chooseServer();
 
-				const response = await this.#sendRequestToServer(server);
-				console.log(response);
+				const responseData = await this.#sendRequestToServer(server);
+				console.log(responseData);
 
-				if (response) {
-					res.end(JSON.stringify(await this.#clientResponse(response)));
+				if (responseData) {
+					res.setHeader("Access-Control-Allow-Origin", "*");
+					res.setHeader(
+						"Access-Control-Allow-Methods",
+						"GET, POST, PUT, DELETE, OPTIONS"
+					);
+					res.end(await this.#clientResponse(responseData));
 				}
 			});
 		});
 	}
-
+	#setHeadersForServerRequest() {
+		const protocol = `${
+			this.#lbRequest?.headers.origin?.at(4) === "s" ? "https" : "http"
+		}`;
+		const host = this.#lbRequest?.headers.origin?.slice(12);
+		const headers = {
+			"X-Forwarded-Proto": `${protocol}`,
+			"X-Forwarded-Port": `${this.#lbServerPort}`,
+			"X-Forwarded-Host": `${host}`, //ignoring  https://www.
+			"X-Forwarded-For": `${this.#lbRequest?.socket.remoteAddress}`,
+		};
+		return headers;
+	}
 	async #sendRequestToServer(server: IServerInfo) {
-		console.log(server);
-		console.log(this.#clientRequestData);
-
 		const FAKE_URL = `https://jsonplaceholder.typicode.com/todos/1`;
 
 		const URL = `http://${server.host}:${server.port}${
 			this.#clientRequestData.path
 		}`;
-
-		console.log(URL);
 
 		let serverResponded = false;
 
@@ -81,6 +100,7 @@ export default class Server {
 			server.activeConnections = server.activeConnections + 1;
 			const response = await fetch(URL, {
 				method: this.#clientRequestData.method,
+				headers: this.#setHeadersForServerRequest(),
 			});
 
 			server.activeConnections = server.activeConnections - 1;
@@ -93,11 +113,11 @@ export default class Server {
 		}
 	}
 
-	async #clientResponse(response: http.IncomingMessage | string | {}) {
-		return response;
+	async #clientResponse(responseData: string) {
+		return responseData;
 	}
 
-	async #chooseServer(servers: IServerInfo[]) {
+	async #chooseServer() {
 		if (this.#loadBalancerCofiguration.algo === "round-robin") {
 			this.#lastUsedServerIndex++;
 			if (this.#lastUsedServerIndex === this.#serverList.length)
@@ -135,6 +155,7 @@ export default class Server {
 		if (!Number(port)) {
 			throw new Error("Argument 1 (PORT) should contain a numeric value");
 		}
+		this.#lbServerPort = Number(port);
 		console.log(host);
 		this.#lbServer.listen(Number(port), host, undefined, cb);
 	}
