@@ -22,9 +22,9 @@ Welcome to Synthra Project! This project aims to provide a customizable and effi
 Supports primary load balancing algorithms to suit different scenarios:
 
 - [x] Round Robin
-- [] Weighted Round Robin
+- [ ] Weighted Round Robin
 - [x] Least Connections
-- [] Source IP Hash
+- [ ] Source IP Hash
 
 ### 2. Health Checks
 
