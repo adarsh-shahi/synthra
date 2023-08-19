@@ -21,10 +21,10 @@ Welcome to Synthra Project! This project aims to provide a customizable and effi
 
 Supports primary load balancing algorithms to suit different scenarios:
 
-- Round Robin
-- Weighted Round Robin
-- Least Connections
-- Source IP Hash
+- [x] Round Robin
+- [] Weighted Round Robin
+- [x] Least Connections
+- [] Source IP Hash
 
 ### 2. Health Checks
 
@@ -48,14 +48,12 @@ Your Load Balancer includes robust health checking capabilities to ensure optima
 2. Navigate to the project directory.
 3. Install dependencies with `npm install`.
 
-
-
 ## Usage
 
 1. Run your load balancer with `npm start`
 2. Monitor server health and traffic distribution via the provided API functions.
-1. Open `test` directory and use API functions in `config.js` and customize the configuration settings as needed.
-2. Configure load balancing algorithms, health check settings, and other features.
+3. Open `test` directory and use API functions in `config.js` and customize the configuration settings as needed.
+4. Configure load balancing algorithms, health check settings, and other features.
 
 ---
 
