@@ -48,13 +48,21 @@ export default class Server {
 			req.on("data", (chunk) => {
 				body += chunk;
 			});
+
 			req.on("end", async () => {
+				const forwardedFor = req.headers["x-fowarded-for"];
+				const clientIp = forwardedFor
+					? forwardedFor.at(0)
+					: this.#lbRequest?.socket.remoteAddress;
 				this.#clientRequestData = {
-					ip: req.url!,
+					ip: clientIp!,
 					path: req.url!,
 					method: req.method!,
 					body,
 				};
+
+				console.log("hey there");
+				console.log(this.#lbRequest?.socket.remoteAddress);
 				console.log(this.#lbServer.address());
 
 				console.log("lastUsedServerIndex: " + this.#lastUsedServerIndex);
@@ -74,6 +82,7 @@ export default class Server {
 			});
 		});
 	}
+
 	#setHeadersForServerRequest() {
 		const protocol = `${
 			this.#lbRequest?.headers.origin?.at(4) === "s" ? "https" : "http"
@@ -83,7 +92,7 @@ export default class Server {
 			"X-Forwarded-Proto": `${protocol}`,
 			"X-Forwarded-Port": `${this.#lbServerPort}`,
 			"X-Forwarded-Host": `${host}`, //ignoring  https://www.
-			"X-Forwarded-For": `${this.#lbRequest?.socket.remoteAddress}`,
+			"X-Forwarded-For": `${this.#clientRequestData.ip}`,
 		};
 		return headers;
 	}
@@ -93,6 +102,7 @@ export default class Server {
 		const URL = `http://${server.host}:${server.port}${
 			this.#clientRequestData.path
 		}`;
+		console.log(URL);
 
 		let serverResponded = false;
 
